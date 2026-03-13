@@ -1,0 +1,29 @@
+---
+description: Spec-driven development — check spec first, implement against spec, flag deviations
+alwaysApply: true
+---
+
+# Spec-Driven Development (SDD)
+
+## Before implementation
+
+1. Check for a spec in `docs/sdd/specs/`. If the user asks for a feature that has a spec, read it.
+2. If no spec exists for a production/multi-file feature, suggest creating one from `docs/sdd/specs/_template.md` or ask before coding.
+3. Validate any plan against the spec (especially "DO NOT" and acceptance tests).
+
+## During implementation
+
+1. Reference the governing spec (e.g. `docs/sdd/specs/notification-service.md`) and the relevant section.
+2. Use acceptance criteria from the spec as test cases (table-driven in Go).
+3. If you must deviate, add a comment: `// SPEC_DEVIATION: [reason]`.
+
+## Validation checklist
+
+- [ ] Implementation matches spec requirements
+- [ ] All "DO NOT" constraints are respected
+- [ ] Acceptance criteria have corresponding tests
+- [ ] Performance/security requirements from spec are addressed
+
+## Flow
+
+Specify → Plan → Tasks → Implement. See `docs/sdd/FLOW.md`.

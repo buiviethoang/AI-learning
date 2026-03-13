@@ -1,0 +1,44 @@
+---
+description: Go project conventions — interfaces, table-driven tests, clean code
+alwaysApply: false
+---
+# Go Standards
+
+- Prefer interfaces for external dependencies (HTTP clients, DB, queues). Inject in constructors.
+- Use `context.Context` as first parameter for cancellation and timeouts.
+- Write table-driven tests for business logic; one test function per behavior, cases in a slice.
+- Break functions; keep them small and single-purpose.
+- No comments for obvious logic; short comments only for non-obvious or spec-critical behavior.
+- Preserve existing patterns in the codebase when adding code.
+
+## Table-driven test shape
+
+```go
+func TestParsePrefs(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    Preference
+		wantErr bool
+	}{
+		{"ok", `{"email":true}`, Preference{Email: true}, false},
+		{"invalid", `{`, Preference{}, true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := ParsePrefs(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("err = %v, wantErr %v", err, tt.wantErr)
+			}
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Errorf("got %+v, want %+v", got, tt.want)
+			}
+		})
+	}
+}
+```
+
+## Error handling
+
+- Return errors; do not swallow. Wrap with `fmt.Errorf("…: %w", err)` when adding context.
+- For retries/backoff, use explicit intervals (e.g. from spec: 1 min, 5 min, 15 min).
