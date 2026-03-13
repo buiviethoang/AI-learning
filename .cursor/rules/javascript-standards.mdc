@@ -1,0 +1,34 @@
+---
+description: JavaScript/TypeScript project conventions — small functions, test tables, clean code
+alwaysApply: false
+---
+# JavaScript / TypeScript Standards
+
+- Prefer small, single-purpose functions; extract helpers instead of long inline logic.
+- Use dependency injection for external deps (HTTP, DB, queues) when testing or swapping impls.
+- Use table-driven / parameterized tests: one `describe` or `it.each` per behavior, cases in an array.
+- No comments for obvious logic; short comments only for non-obvious or spec-critical behavior.
+- Preserve existing patterns (CommonJS vs ESM, async style, naming) when adding code.
+- Prefer `const`; avoid mutable globals. Use TypeScript types for public APIs.
+
+## Table-style tests (Jest / Vitest)
+
+```js
+describe('parsePrefs', () => {
+  it.each([
+    ['{"email":true}', { email: true }, false],
+    ['{', null, true],
+  ])('input %s -> wantErr %s', (input, want, wantErr) => {
+    if (wantErr) {
+      expect(() => parsePrefs(input)).toThrow();
+    } else {
+      expect(parsePrefs(input)).toEqual(want);
+    }
+  });
+});
+```
+
+## Error handling
+
+- Prefer throwing or returning Result-like values; do not swallow errors.
+- For retries/backoff, use explicit intervals (e.g. from spec: 1 min, 5 min, 15 min).

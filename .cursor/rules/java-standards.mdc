@@ -1,0 +1,39 @@
+---
+description: Java project conventions — interfaces, parameterized tests, clean code
+alwaysApply: false
+---
+# Java Standards
+
+- Prefer interfaces for external dependencies (HTTP clients, DB, queues). Inject via constructor or builder.
+- Keep methods small and single-purpose; extract private methods when logic grows.
+- Use parameterized tests (JUnit 5 `@ParameterizedTest`) for multiple inputs; one test method per behavior.
+- No comments for obvious logic; short comments only for non-obvious or spec-critical behavior.
+- Preserve existing patterns in the codebase when adding code.
+- Prefer immutable DTOs (records, or final fields + constructor).
+
+## Parameterized test shape (JUnit 5)
+
+```java
+@ParameterizedTest
+@CsvSource({"input1,expected1", "input2,expected2"})
+void parsePrefs(String input, String expected) {
+    var got = Parser.parsePrefs(input);
+    assertThat(got).isEqualTo(expected);
+}
+
+// Or @MethodSource for complex cases
+@ParameterizedTest
+@MethodSource("parsePrefsCases")
+void parsePrefs(String input, Preference want, boolean wantErr) {
+    if (wantErr) {
+        assertThrows(InvalidInputException.class, () -> Parser.parsePrefs(input));
+    } else {
+        assertThat(Parser.parsePrefs(input)).isEqualTo(want);
+    }
+}
+```
+
+## Error handling
+
+- Use exceptions; do not swallow. Wrap with cause: `throw new MyException("context", e)`.
+- For retries/backoff, use explicit intervals (e.g. from spec: 1 min, 5 min, 15 min).

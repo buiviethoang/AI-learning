@@ -10,6 +10,8 @@ This project uses **Spec-Driven Development (SDD)** so multiple agents or sessio
 2. **Rules**  
    - `.cursor/rules/sdd-standards.mdc` — always: check spec, implement against spec, flag deviations  
    - `.cursor/rules/go-standards.mdc` — when editing `**/*.go`: interfaces, table-driven tests, clean code  
+   - `.cursor/rules/java-standards.mdc` — when editing `**/*.java`: interfaces, parameterized tests, clean code  
+   - `.cursor/rules/javascript-standards.mdc` — when editing `**/*.js`, `**/*.ts`: small functions, table-style tests, clean code  
 
 3. **Skill**  
    - `.cursor/skills/spec-driven-development/` — when user asks for a feature or mentions specs/plans/tasks  
@@ -27,7 +29,7 @@ docs/sdd/
   progress/         # Per-feature progress for resuming
 
 .cursor/
-  rules/            # SDD + Go rules
+  rules/            # SDD + Go + Java + JS rules
   skills/           # spec-driven-development skill
 ```
 

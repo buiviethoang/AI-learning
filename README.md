@@ -2,9 +2,64 @@
 
 Spec-driven development (SDD) template for Go projects, usable with **Cursor** or **Claude Code** (and other AI coding agents).
 
+## Use as a library (Go, Java, JS)
+
+Same API and [file layout](docs/sdd/LIBRARY.md) in all bindings: path helpers + load spec/plan/tasks/progress from a base dir (e.g. `docs/sdd`).
+
+### Go
+
+```bash
+go get github.com/hoangbv7/ai-learning/sdd
+```
+
+```go
+import "github.com/hoangbv7/ai-learning/sdd"
+
+spec, err := sdd.LoadSpec(ctx, "docs/sdd", "notification-service")
+// sdd.SpecPath, sdd.PlanPath, sdd.TasksPath, sdd.ProgressPath, sdd.Paths(baseDir)
+```
+
+### Java (Maven)
+
+```xml
+<dependency>
+  <groupId>ai.learning</groupId>
+  <artifactId>sdd</artifactId>
+  <version>0.1.0</version>
+</dependency>
+```
+
+Install from repo: `mvn install` in `sdd-java/`, then depend on `ai.learning:sdd`.
+
+```java
+import ai.learning.sdd.SDD;
+import ai.learning.sdd.Spec;
+
+Spec spec = SDD.loadSpec("docs/sdd", "notification-service");
+// SDD.specPath, planPath, tasksPath, progressPath, paths(baseDir)
+```
+
+### JS / Node
+
+```bash
+npm install /path/to/AI-learning/sdd-js
+# or link: npm link ./sdd-js
+```
+
+```js
+const sdd = require('sdd-sdk');
+const spec = sdd.loadSpec('docs/sdd', 'notification-service');
+// sdd.loadSpecAsync, loadPlan, loadTasks, loadProgress; path helpers: specPath, planPath, etc.
+```
+
+TypeScript: types in `sdd-js/index.d.ts`.
+
+**Contract**: [docs/sdd/LIBRARY.md](docs/sdd/LIBRARY.md) — layout and API surface shared by all bindings.
+
 ## Quick links
 
 - **SDD flow**: [docs/sdd/FLOW.md](docs/sdd/FLOW.md) — Specify → Plan → Tasks → Implement
+- **Library contract**: [docs/sdd/LIBRARY.md](docs/sdd/LIBRARY.md) — layout and API for Go/Java/JS
 - **For agents (Cursor)**: [AGENTS.md](AGENTS.md) — rules, skills, resuming
 - **Example spec**: [docs/sdd/specs/notification-service.md](docs/sdd/specs/notification-service.md)
 - **Using Claude Code**: [docs/sdd/CLAUDE_CODE.md](docs/sdd/CLAUDE_CODE.md)
