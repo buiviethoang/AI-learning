@@ -9,11 +9,11 @@ Same API and [file layout](docs/sdd/LIBRARY.md) in all bindings: path helpers + 
 ### Go
 
 ```bash
-go get github.com/hoangbv7/ai-learning/sdd
+go get github.com/buiviethoang/AI-learning/sdd
 ```
 
 ```go
-import "github.com/hoangbv7/ai-learning/sdd"
+import "github.com/buiviethoang/AI-learning/sdd"
 
 spec, err := sdd.LoadSpec(ctx, "docs/sdd", "notification-service")
 // sdd.SpecPath, sdd.PlanPath, sdd.TasksPath, sdd.ProgressPath, sdd.Paths(baseDir)

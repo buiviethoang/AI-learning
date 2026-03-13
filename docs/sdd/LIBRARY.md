@@ -24,7 +24,7 @@ Directory names: `specs`, `plans`, `progress`.
 
 ## Bindings
 
-- **Go**: `github.com/hoangbv7/ai-learning/sdd` — `LoadSpec(ctx, baseDir, feature)`, path helpers, `Spec.Content` is `[]byte`.
+- **Go**: `github.com/buiviethoang/AI-learning/sdd` — `LoadSpec(ctx, baseDir, feature)`, path helpers, `Spec.Content` is `[]byte`.
 - **Java**: `sdd-java/` — Maven artifact; same path and load API; `Spec.getContent()` returns `String` or `byte[]`.
 - **JS**: `sdd-js/` — npm-style package; sync `loadSpec(baseDir, feature)`; optional async where applicable; TypeScript types included.
 
