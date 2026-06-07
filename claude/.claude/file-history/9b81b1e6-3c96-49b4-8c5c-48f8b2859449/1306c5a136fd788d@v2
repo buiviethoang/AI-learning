@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude doctor:*)",
+      "Bash(npm i *)",
+      "Bash(sudo npm *)",
+      "Bash(uv run *)",
+      "Bash(rtk ls *)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

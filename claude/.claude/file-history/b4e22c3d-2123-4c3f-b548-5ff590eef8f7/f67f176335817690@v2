@@ -1,0 +1,130 @@
+# Runbook
+
+## Common build commands
+
+| Task | Command |
+|---|---|
+| Full build + all tests | `mvn verify` |
+| Build, skip tests | `mvn package -DskipTests` |
+| Core module only | `mvn verify -pl jsprit-core` |
+| Clean build | `mvn clean verify` |
+| Unit tests only (no IT) | `mvn test` |
+| Integration tests only | `mvn failsafe:integration-test failsafe:verify` |
+| Javadoc | `mvn javadoc:javadoc` |
+| Dependency tree | `mvn dependency:tree` |
+
+## Test breakdown
+
+| Suite | Pattern | Runner | Memory cap |
+|---|---|---|---|
+| Unit tests | `*Test.java` | maven-surefire | `-Xmx100m -Xms100m` |
+| Integration tests | `*IT.java` | maven-failsafe | `-Xmx100m -Xms100m` |
+
+102 unit tests, 14 integration tests (as of current codebase).
+
+Run a single test class:
+```bash
+mvn test -pl jsprit-core -Dtest=VehicleRoutingAlgorithmTest
+mvn verify -pl jsprit-core -Dit.test=BuildCVRPAlgoFromScratch_IT
+```
+
+Run a single test method:
+```bash
+mvn test -pl jsprit-core -Dtest=VehicleRoutingAlgorithmTest#testIterationCount
+```
+
+## CI pipeline (GitHub Actions)
+
+**build.yml** — triggers on every push
+1. Set up JDK 21 (Temurin)
+2. `mvn --batch-mode --update-snapshots verify`
+3. On tag push: set version from tag → deploy to GitHub Packages
+
+**publish-maven-central.yml** — triggers on `v*.*.*` tags (stable only, no hyphen)
+1. `mvn clean verify`
+2. Set version from tag
+3. `mvn deploy -P release -DskipTests`
+
+Required GitHub secrets:
+- `GPG_PRIVATE_KEY` / `GPG_PASSPHRASE` — artifact signing
+- `CENTRAL_USERNAME` / `CENTRAL_TOKEN` — Maven Central credentials
+- `MAVEN_SETTINGS_USERNAME_FOR_GITHUB` / `MAVEN_SETTINGS_PASSWORD_FOR_GITHUB`
+
+## Release process
+
+```bash
+# 1. Ensure clean main branch
+git checkout master && git pull
+
+# 2. Verify everything passes
+mvn clean verify
+
+# 3. Tag the release (no SNAPSHOT, no hyphen for Maven Central eligibility)
+git tag v2.1.0
+git push origin v2.1.0
+# CI handles: version bump, signing, deploy to Maven Central
+
+# 4. Bump to next snapshot after release
+mvn versions:set -DnewVersion=2.2.0-SNAPSHOT -DgenerateBackupPoms=false
+git commit -am "chore: bump to 2.2.0-SNAPSHOT"
+git push
+```
+
+Tag format: `v<major>.<minor>.<patch>` — no suffix → published to Maven Central.
+Tags with suffix (e.g. `v2.1.0-RC1`) → published to GitHub Packages only.
+
+## Troubleshooting
+
+### `OutOfMemoryError` in tests
+Tests run with `-Xmx100m`. Do not create large problem instances in unit tests.
+For big benchmarks use `*IT.java` naming — failsafe uses the same cap but you can override:
+```bash
+mvn failsafe:integration-test -DargLine="-Xmx512m"
+```
+
+### `IllegalStateException: vehicle used in initial solution has no index`
+The vehicle in your initial solution is not registered in the VRP. Always build initial
+routes using vehicles you added to `VehicleRoutingProblem.Builder`, and use
+`vrp.getJobActivityFactory()` when constructing `VehicleRoute` manually.
+
+### `solution is null. check solutionSelector`
+No initial solution was provided. Either:
+- Let `Jsprit.createAlgorithm(vrp)` build one (default), or
+- Call `algorithm.addInitialSolution(spec)` before `searchSolutions()`.
+
+### Non-deterministic results between runs
+Ruin operators use a `Random` instance. For reproducible results:
+```java
+VehicleRoutingAlgorithm algo = Jsprit.createAlgorithm(vrp);
+algo.getSearchStrategyManager().setRandom(new Random(42));
+```
+
+### Slow solve times
+- Increase `THREADS` parameter to use parallel insertion:
+  ```java
+  Jsprit.Builder.newInstance(vrp)
+      .setProperty(Parameter.THREADS, "4")
+      .buildAlgorithm();
+  ```
+- Reduce `ITERATIONS` (default 2000). 500–1000 is often sufficient for small problems.
+- Prefer `RegretInsertionFast` over `RegretInsertion` for large instances.
+
+### `act in initial solution has no index`
+Use `vrp.getJobActivityFactory()` when building vehicle routes from scratch:
+```java
+VehicleRoute.Builder.newInstance(vehicle)
+    .setJobActivityFactory(vrp.getJobActivityFactory())
+    .addService(service)
+    .build();
+```
+
+## Useful log configuration
+
+jsprit uses SLF4J. Add a backend (e.g. logback) and set levels:
+```xml
+<!-- logback.xml -->
+<logger name="com.graphhopper.jsprit" level="INFO"/>
+<!-- For iteration-by-iteration detail: -->
+<logger name="com.graphhopper.jsprit.core.algorithm" level="DEBUG"/>
+```
+`TRACE` level logs each route in every iteration — very verbose, only for debugging.

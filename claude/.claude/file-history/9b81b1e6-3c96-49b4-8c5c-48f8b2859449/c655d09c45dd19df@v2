@@ -1,0 +1,189 @@
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://localhost:20128/v1",
+    "ANTHROPIC_DEFAULT_OPUS_MODEL": "cc/claude-opus-4-6",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "cc/claude-sonnet-4-6",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "cc/claude-haiku-4-5-20251001",
+    "CCGUI_CLI_LOGIN_AUTHORIZED": "1",
+    "CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC": "1",
+    "CLAUDE_AUTOCOMPACT_PCT_OVERRIDE": "50"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(python3 -)",
+      "Bash(pip install *)",
+      "Bash(python3 -c \"from reportlab.lib.pagesizes import letter; print\\('reportlab available'\\)\")",
+      "Bash(python3 create_summary_pdf.py)",
+      "Bash(mkdir -p /home/hoangbui/Desktop/Personal/an-startups/jsprit/.claude)",
+      "Bash(mv /home/hoangbui/Desktop/Personal/an-startups/jsprit/.claude/erd.md /home/hoangbui/Desktop/Personal/an-startups/jsprit/docs/erd.md)",
+      "Bash(mv /home/hoangbui/Desktop/Personal/an-startups/jsprit/.claude/c4-and-architecture.md /home/hoangbui/Desktop/Personal/an-startups/jsprit/docs/c4-and-architecture.md)",
+      "Bash(mv /home/hoangbui/Desktop/Personal/an-startups/jsprit/.claude/algorithm.md /home/hoangbui/Desktop/Personal/an-startups/jsprit/docs/algorithm.md)",
+      "Bash(mv /home/hoangbui/Desktop/Personal/an-startups/jsprit/.claude/logical-flow.md /home/hoangbui/Desktop/Personal/an-startups/jsprit/docs/logical-flow.md)",
+      "Bash(mv /home/hoangbui/Desktop/Personal/an-startups/jsprit/.claude/how-to-run.md /home/hoangbui/Desktop/Personal/an-startups/jsprit/docs/how-to-run.md)",
+      "Bash(mv /home/hoangbui/Desktop/Personal/an-startups/jsprit/.claude/integration.md /home/hoangbui/Desktop/Personal/an-startups/jsprit/docs/integration.md)",
+      "Bash(mv /home/hoangbui/Desktop/Personal/an-startups/jsprit/.claude/runbook.md /home/hoangbui/Desktop/Personal/an-startups/jsprit/docs/runbook.md)"
+    ],
+    "additionalDirectories": [
+      "/home/hoangbui/Desktop/Personal/an-startups/jsprit"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/cbm-code-discovery-gate",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /usr/local/lib/node_modules/context-mode/hooks/pretooluse.mjs",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"/home/hoangbui/.claude/hooks/caveman-activate.js\"",
+            "timeout": 5,
+            "statusMessage": "Loading caveman mode..."
+          }
+        ]
+      },
+      {
+        "matcher": "startup",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/cbm-session-reminder"
+          }
+        ]
+      },
+      {
+        "matcher": "resume",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/cbm-session-reminder"
+          }
+        ]
+      },
+      {
+        "matcher": "clear",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/cbm-session-reminder"
+          }
+        ]
+      },
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/cbm-session-reminder"
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /usr/local/lib/node_modules/context-mode/hooks/sessionstart.mjs",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /usr/local/lib/node_modules/context-mode/hooks/posttooluse.mjs",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /usr/local/lib/node_modules/context-mode/hooks/precompact.mjs",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"/home/hoangbui/.claude/hooks/caveman-mode-tracker.js\"",
+            "timeout": 5,
+            "statusMessage": "Tracking caveman mode..."
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node /usr/local/lib/node_modules/context-mode/hooks/userpromptsubmit.mjs",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "~/.claude/statusline-command.sh",
+    "padding": 0,
+    "refreshInterval": 10
+  },
+  "enabledPlugins": {
+    "context7@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": true,
+    "caveman@caveman": true,
+    "gopls-lsp@claude-plugins-official": true,
+    "context-mode@context-mode": true
+  },
+  "extraKnownMarketplaces": {
+    "anthropic-agent-skills": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/skills"
+      }
+    },
+    "claude-plugins-official": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-official"
+      }
+    },
+    "caveman": {
+      "source": {
+        "source": "github",
+        "repo": "JuliusBrussee/caveman"
+      }
+    }
+  },
+  "effortLevel": "medium",
+  "skipDangerousModePermissionPrompt": true
+}

@@ -1,0 +1,36 @@
+# Rules & Constraints
+
+## Hard rules — never break
+
+1. **No public API removal without a migration path.** Add deprecation + `@Deprecated` first; remove only in a major release.
+2. **No mutable statics.** Algorithm instances must be reentrant-safe if constructed fresh.
+3. **No checked exceptions in hot paths.** Ruin/insertion loops run millions of times; throw unchecked or return status.
+4. **`jsprit-analysis` must not depend on `jsprit-core` internals.** Only the public API surface.
+5. **All new public types need Javadoc** on the class and each public method.
+6. **Do not add `System.exit()` calls** anywhere in library code.
+
+## Constraints to keep in mind
+
+- `Capacity` is immutable after construction. Never mutate — call factory methods to produce new instances.
+- `StateManager` values are keyed by `StateId`. Always define `StateId` constants as static finals to avoid string duplication.
+- Insertion calculators must be stateless between calls; state lives in `StateManager`.
+- `VehicleRoutingProblem` is immutable after `.build()`. Do not attempt modification.
+- The algorithm's `searchSolutions()` is not thread-safe. Use separate instances for parallel solves.
+
+## What to avoid
+
+- Pulling in new runtime dependencies without discussion — the library is intentionally lean.
+- Adding `commons-lang` or Guava utilities; use JDK equivalents.
+- Writing new code in `jsprit-analysis` that touches route internals — use `VehicleRoute`/`TourActivity` public API only.
+- Large allocations inside inner loops of ruin/insertion — prefer `trove4j` collections for primitive maps/sets.
+
+## When adding a new constraint type
+1. Implement `HardActivityConstraint` or `HardRouteConstraint` (prefer `Hard` over `Soft` where the rule is absolute).
+2. Register via `ConstraintManager.addConstraint()`.
+3. Add a unit test that verifies the constraint fires and the route is rejected.
+4. Document the constraint's invariant in Javadoc.
+
+## When modifying the algorithm
+- Do not change default `Jsprit` factory behavior without a feature flag or new factory method.
+- Run the full test suite (`mvn verify`) before considering the change done.
+- Add a `StrategyExecuted` listener test to confirm iteration behavior if you touch `SearchStrategy`.

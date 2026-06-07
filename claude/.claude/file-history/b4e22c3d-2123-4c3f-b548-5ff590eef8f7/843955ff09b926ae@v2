@@ -1,0 +1,142 @@
+# System Architecture & C4 Diagrams
+
+## SAD — Software Architecture Description
+
+jsprit is a **library** (not a service). It is embedded into a host application.
+The three architectural concerns are:
+
+| Concern | How jsprit handles it |
+|---|---|
+| Problem modelling | Immutable `VehicleRoutingProblem` assembled via fluent Builder |
+| Solving | Pluggable ruin-and-recreate meta-heuristic inside `VehicleRoutingAlgorithm` |
+| Observability | Listener/event-bus attached to algorithm, ruin, insertion phases |
+
+---
+
+## C4 Level 1 — System Context
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  Host Application                                            │
+│  (logistics platform, optimizer service, scheduling tool)    │
+│                                                              │
+│   ┌──────────────────────────────────────┐                   │
+│   │            jsprit library            │                   │
+│   │  Solves VRP/TSP variants             │                   │
+│   └──────────────────────────────────────┘                   │
+│           │                    │                             │
+│   reads transport costs   reads job/vehicle data             │
+│           │                    │                             │
+│   ┌───────┴──────┐    ┌────────┴────────┐                    │
+│   │ Routing/Map  │    │  Business data  │                    │
+│   │ data source  │    │  (orders, fleet)│                    │
+│   │ (optional)   │    │                 │                    │
+│   └──────────────┘    └─────────────────┘                    │
+└──────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## C4 Level 2 — Containers
+
+```
+┌─────────────────────────────────────────────────────┐
+│  jsprit                                             │
+│                                                     │
+│  ┌──────────────────────────────────────────────┐   │
+│  │  jsprit-core  (JAR)                          │   │
+│  │  Problem model, algorithm, constraints, costs│   │
+│  │  com.graphhopper.jsprit.core.*               │   │
+│  └──────────────────────┬───────────────────────┘   │
+│                         │ uses public API            │
+│  ┌──────────────────────▼───────────────────────┐   │
+│  │  jsprit-analysis  (JAR)                      │   │
+│  │  Post-solve visualisation & stats toolbox    │   │
+│  │  com.graphhopper.jsprit.analysis.*           │   │
+│  └──────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────┘
+```
+
+---
+
+## C4 Level 3 — Components (jsprit-core)
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│  jsprit-core                                                         │
+│                                                                      │
+│  ┌──────────────────────┐      ┌────────────────────────────────┐    │
+│  │  Problem Model       │      │  Algorithm                     │    │
+│  │                      │      │                                │    │
+│  │  VehicleRoutingProblem◄─────┤  VehicleRoutingAlgorithm       │    │
+│  │  ├─ Jobs             │      │  └─ SearchStrategyManager      │    │
+│  │  ├─ Vehicles         │      │       └─ SearchStrategy(s)     │    │
+│  │  ├─ TransportCosts   │      │            ├─ SolutionSelector │    │
+│  │  └─ ActivityCosts    │      │            ├─ Module(s)        │    │
+│  └──────────────────────┘      │            │   ├─ RuinStrategy │    │
+│                                │            │   └─ Insertion-   │    │
+│  ┌──────────────────────┐      │            │      Strategy     │    │
+│  │  Constraint Framework│      │            └─ SolutionAcceptor │    │
+│  │                      │◄─────┤                                │    │
+│  │  ConstraintManager   │      └────────────────────────────────┘    │
+│  │  ├─ HardRoute        │                        │                   │
+│  │  ├─ HardActivity     │      ┌─────────────────▼──────────────┐    │
+│  │  ├─ SoftRoute        │      │  State & Cost                  │    │
+│  │  └─ SoftActivity     │      │                                │    │
+│  └──────────────────────┘      │  StateManager  (route cache)   │    │
+│                                │  SolutionCostCalculator        │    │
+│  ┌──────────────────────┐      │  VehicleRoutingTransportCosts  │    │
+│  │  Solution Model      │◄─────┤  VehicleRoutingActivityCosts   │    │
+│  │                      │      └────────────────────────────────┘    │
+│  │  VRPSolution         │                                            │
+│  │  └─ VehicleRoute(s)  │      ┌────────────────────────────────┐    │
+│  │       └─ TourActivity│      │  Event Bus                     │    │
+│  │  └─ unassigned Jobs  │      │                                │    │
+│  └──────────────────────┘      │  AlgorithmEventListener        │    │
+│                                │  Events: AlgorithmStarts,      │    │
+│  ┌──────────────────────┐      │  IterationStarted/Completed,   │    │
+│  │  Factory (Jsprit)    │      │  StrategySelected/Executed,    │    │
+│  │                      │      │  AcceptanceDecision            │    │
+│  │  Jsprit.createAlgo() │      └────────────────────────────────┘    │
+│  │  Wires all components│                                            │
+│  └──────────────────────┘                                            │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## C4 Level 4 — Algorithm component (key classes)
+
+```
+VehicleRoutingAlgorithm
+  ├── SearchStrategyManager
+  │     └── SearchStrategy [1..*]
+  │           ├── SolutionSelector
+  │           │     └── SelectBest | SelectRandomly
+  │           ├── SearchStrategyModule [1..*]
+  │           │     └── RuinAndRecreateModule
+  │           │           ├── RuinStrategy
+  │           │           │     └── RuinRandom | RuinRadial | RuinWorst
+  │           │           │           | RuinClusters | RuinTimeRelated
+  │           │           └── InsertionStrategy
+  │           │                 └── BestInsertion | CheapestInsertion
+  │           │                       | RegretInsertion | *Concurrent
+  │           ├── SolutionCostCalculator
+  │           └── SolutionAcceptor
+  │                 └── SchrimpfAcceptance | GreedyAcceptance
+  │                       | RecordToRecordTravelAcceptance
+  ├── TerminationManager
+  │     └── PrematureAlgorithmTermination [0..*]
+  └── EventBus (emit / addEventListener)
+```
+
+---
+
+## Package dependency rules
+
+```
+algorithm/box  →  algorithm/*  →  problem/*  →  util/*
+analysis/*     →  problem/* (public API only, no algorithm internals)
+```
+
+No circular dependencies. `analysis` must never import from `algorithm`.

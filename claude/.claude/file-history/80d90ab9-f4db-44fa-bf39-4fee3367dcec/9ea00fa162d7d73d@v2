@@ -1,0 +1,79 @@
+# STMS Routing Core Service
+
+Route optimization microservice for ViettelPost STMS platform. Built with Quarkus + Java 21, deployed on Kubernetes.
+
+## Build & Run
+
+```bash
+# Build
+./mvnw clean package -DskipTests
+
+# Run locally (dev mode with hot reload)
+./mvnw quarkus:dev -pl main
+
+# Run tests
+./mvnw test
+
+# Build Docker image
+docker build -t stms-routing-core .
+```
+
+Service runs on port **8002**.
+
+## Project Structure
+
+```
+main/        # Quarkus entry point & packaging
+service/     # Core algorithm logic (operators, solvers, constraints)
+interface/   # REST controllers
+consumer/    # Kafka consumers
+manifest/    # Kubernetes deployment YAMLs
+```
+
+## Algorithm Modules (`service/src/main/java/.../routing/service/`)
+
+Three routing problem types, each with its own subdirectory tree:
+
+| Problem Type | Package Prefix | Description |
+|---|---|---|
+| **CVRPTW** | `*/cvrptw/` | Capacitated Vehicle Routing with Time Windows |
+| **Hub & Spoke** | `*/hubandspoke/` | Hub-and-spoke delivery network |
+| **Multiple Pickup Delivery** | `*/multiplepickupdelivery/` | Multi-stop pickup/delivery |
+
+Each problem type has:
+- `constraint/` — routing constraints (time windows, capacity)
+- `operator/` — search operators (move, swap, insert) + post-operators (post-processing)
+- `solver/` — solver orchestration
+
+Shared modules:
+- `optimization/` — `RoutingOptimizationService`, top-level entry
+- `io/` — data readers (MongoDB, file)
+- `viewer/` — solution adaptation/output formatting
+- `indicator/` — performance metrics
+- `producer/` — Kafka result publishers
+
+## Key Entry Points
+
+- **REST API**: `interface/.../RoutingOptimizationController` — triggers optimization
+- **Kafka Consumer**: `consumer/.../kafka/` — receives optimization requests
+- **Optimization Service**: `service/.../optimization/implement/` — dispatches to correct solver
+- **App Main**: `main/.../Main.java` — Quarkus bootstrap
+
+## Configuration
+
+- `main/src/main/resources/application.properties` — Quarkus config (ports, MongoDB URI, Kafka brokers)
+- `manifest/1-configmap.yaml` — K8s environment config
+- `manifest/2-secret.yaml` — K8s secrets
+
+## Tech Stack
+
+- **Java 21** / **Quarkus** framework
+- **MongoDB** — data persistence
+- **Kafka** — async message transport
+- **Lombok** — boilerplate reduction
+- **Mutiny / Reactor** — reactive programming
+- **Maven** multi-module build
+
+## CI/CD
+
+GitLab CI (`.gitlab-ci.yml`) — builds Docker image, pushes to registry, deploys to `dev-stms` K8s namespace.

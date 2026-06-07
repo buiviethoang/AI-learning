@@ -1,0 +1,220 @@
+# Integration Guide
+
+## Adding jsprit as a dependency
+
+### Maven
+```xml
+<dependency>
+    <groupId>com.graphhopper</groupId>
+    <artifactId>jsprit-core</artifactId>
+    <version>2.1.0</version>
+</dependency>
+
+<!-- Optional: post-solve analysis tools -->
+<dependency>
+    <groupId>com.graphhopper</groupId>
+    <artifactId>jsprit-analysis</artifactId>
+    <version>2.1.0</version>
+</dependency>
+```
+
+### Gradle
+```groovy
+implementation 'com.graphhopper:jsprit-core:2.1.0'
+implementation 'com.graphhopper:jsprit-analysis:2.1.0'  // optional
+```
+
+### Transitive dependencies pulled in
+| Library | Version | Purpose |
+|---|---|---|
+| `trove4j` | 3.0.3 | High-performance primitive collections |
+| `commons-math3` | 3.6.1 | Math utilities |
+| `slf4j-api` | 2.0.16 | Logging facade (no backend bundled) |
+
+You must provide an SLF4J backend (e.g. `logback-classic` or `slf4j-simple`) in your app.
+
+---
+
+## Minimal integration pattern
+
+```java
+// 1. Build problem
+VehicleRoutingProblem vrp = VehicleRoutingProblem.Builder.newInstance()
+    .addVehicle(vehicle)
+    .addJob(service)
+    .build();
+
+// 2. Solve
+VehicleRoutingAlgorithm algo = Jsprit.createAlgorithm(vrp);
+Collection<VehicleRoutingProblemSolution> solutions = algo.searchSolutions();
+
+// 3. Read result
+VehicleRoutingProblemSolution best = Solutions.bestOf(solutions);
+for (VehicleRoute route : best.getRoutes()) {
+    System.out.println("Vehicle: " + route.getVehicle().getId());
+    for (TourActivity act : route.getActivities()) {
+        System.out.println("  → " + act.getLocation().getId()
+            + " arr=" + act.getArrTime()
+            + " end=" + act.getEndTime());
+    }
+}
+```
+
+---
+
+## Providing a custom transport cost matrix
+
+Implement `VehicleRoutingTransportCosts` to supply real distances/times:
+
+```java
+public class MyMatrixCosts implements VehicleRoutingTransportCosts {
+
+    private final Map<String, Map<String, Double>> distanceMatrix; // location id → id → cost
+
+    @Override
+    public double getTransportCost(Location from, Location to, double departureTime,
+                                   Driver driver, Vehicle vehicle) {
+        return distanceMatrix.get(from.getId()).get(to.getId());
+    }
+
+    @Override
+    public double getTransportTime(Location from, Location to, double departureTime,
+                                   Driver driver, Vehicle vehicle) {
+        return distanceMatrix.get(from.getId()).get(to.getId()); // or separate time matrix
+    }
+
+    @Override
+    public double getBackwardTransportCost(Location from, Location to, double arrivalTime,
+                                           Driver driver, Vehicle vehicle) {
+        return getTransportCost(from, to, 0, driver, vehicle);
+    }
+
+    @Override
+    public double getBackwardTransportTime(Location from, Location to, double arrivalTime,
+                                           Driver driver, Vehicle vehicle) {
+        return getTransportTime(from, to, 0, driver, vehicle);
+    }
+}
+
+// Register:
+VehicleRoutingProblem vrp = VehicleRoutingProblem.Builder.newInstance()
+    .setRoutingCost(new MyMatrixCosts(matrix))
+    .addVehicle(...)
+    .addJob(...)
+    .build();
+```
+
+---
+
+## Adding a custom hard constraint
+
+```java
+public class MaxStopsConstraint implements HardRouteConstraint {
+
+    private final int maxStops;
+
+    public MaxStopsConstraint(int maxStops) { this.maxStops = maxStops; }
+
+    @Override
+    public ConstraintsStatus fulfilled(JobInsertionContext context) {
+        int currentStops = context.getRoute().getTourActivities().getJobs().size();
+        if (currentStops >= maxStops) return ConstraintsStatus.NOT_FULFILLED;
+        return ConstraintsStatus.FULFILLED;
+    }
+}
+
+// Register:
+StateManager stateManager = new StateManager(vrp);
+ConstraintManager constraintManager = new ConstraintManager(vrp, stateManager);
+constraintManager.addConstraint(new MaxStopsConstraint(5));
+
+VehicleRoutingAlgorithm algo = Jsprit.Builder.newInstance(vrp)
+    .addCoreStateAndConstraintStuff()
+    .setStateAndConstraintManager(stateManager, constraintManager)
+    .buildAlgorithm();
+```
+
+For activity-level constraints, implement `HardActivityConstraint` instead and use
+`constraintManager.addConstraint(c, ConstraintManager.Priority.CRITICAL)`.
+
+---
+
+## Observing the solve with event listeners
+
+```java
+algo.addEventListener(event -> {
+    if (event instanceof IterationCompleted ic) {
+        System.out.printf("iter %d  best=%.2f%n", ic.getIteration(), ic.getBestCost());
+    }
+    if (event instanceof AcceptanceDecision ad) {
+        System.out.println("accepted=" + ad.isAccepted());
+    }
+});
+```
+
+Available event types (all in `algorithm.listener.events`):
+- `AlgorithmStarted` / `AlgorithmEnded`
+- `IterationStarted` / `IterationCompleted`
+- `StrategySelected` / `StrategyExecuted`
+- `AcceptanceDecision`
+
+---
+
+## Providing an initial solution
+
+```java
+// Preferred: use SolutionSpec (avoids activity indexing issues)
+SolutionSpec spec = SolutionSpec.Builder.newInstance()
+    .addRoute(RouteSpec.Builder.newInstance("vehicle-id")
+        .addActivity(ActivitySpec.newInstance("job1", ActivityType.SERVICE))
+        .addActivity(ActivitySpec.newInstance("job2", ActivityType.SERVICE))
+        .build())
+    .build();
+algo.addInitialSolution(spec);
+```
+
+Or pass a pre-built `VehicleRoutingProblemSolution` — but activities must reference the
+exact same objects returned by `vrp.getJobActivityFactory()`.
+
+---
+
+## Thread safety
+
+`VehicleRoutingAlgorithm` is **not thread-safe**. To solve multiple problems in parallel,
+create a separate instance per thread:
+
+```java
+ExecutorService pool = Executors.newFixedThreadPool(4);
+for (VehicleRoutingProblem vrp : problems) {
+    pool.submit(() -> {
+        VehicleRoutingAlgorithm algo = Jsprit.createAlgorithm(vrp);
+        return Solutions.bestOf(algo.searchSolutions());
+    });
+}
+```
+
+Alternatively, use the built-in `THREADS` parameter to parallelise *insertion evaluation*
+within a single solve (thread-safe internally):
+```java
+Jsprit.Builder.newInstance(vrp).setProperty(Jsprit.Parameter.THREADS, "4").buildAlgorithm();
+```
+
+---
+
+## Using jsprit-analysis
+
+```java
+import com.graphhopper.jsprit.analysis.toolbox.StopWatch;
+import com.graphhopper.jsprit.analysis.toolbox.SolutionPrinter;
+
+// Print solution summary to stdout
+SolutionPrinter.print(vrp, best, SolutionPrinter.Print.VERBOSE);
+
+// Timing
+StopWatch stopWatch = new StopWatch();
+algo.getAlgorithmListeners().addListener(stopWatch);
+// ... run ...
+System.out.println("Solved in: " + stopWatch.toString());
+```
+
+`jsprit-analysis` only uses the public API of `jsprit-core` — never algorithm internals.

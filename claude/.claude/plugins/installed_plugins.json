@@ -1,0 +1,66 @@
+{
+  "version": 2,
+  "plugins": {
+    "document-skills@anthropic-agent-skills": [
+      {
+        "scope": "project",
+        "projectPath": "/home/hoangbui/Desktop/Personal/hidden-gems",
+        "installPath": "/home/hoangbui/.claude/plugins/cache/anthropic-agent-skills/document-skills/5128e1865d67",
+        "version": "5128e1865d67",
+        "installedAt": "2026-04-26T09:58:14.818Z",
+        "lastUpdated": "2026-04-26T09:58:14.818Z",
+        "gitCommitSha": "5128e1865d670f5d6c9cef000e6dfc4e951fb5b9"
+      }
+    ],
+    "context7@claude-plugins-official": [
+      {
+        "scope": "user",
+        "installPath": "/home/hoangbui/.claude/plugins/cache/claude-plugins-official/context7/c27421d77d9e",
+        "version": "c27421d77d9e",
+        "installedAt": "2026-06-07T14:51:19.253Z",
+        "lastUpdated": "2026-06-07T14:51:19.253Z",
+        "gitCommitSha": "c27421d77d9edce81ab0d1ab1286654e626de219"
+      }
+    ],
+    "code-review@claude-plugins-official": [
+      {
+        "scope": "user",
+        "installPath": "/home/hoangbui/.claude/plugins/cache/claude-plugins-official/code-review/c27421d77d9e",
+        "version": "c27421d77d9e",
+        "installedAt": "2026-06-07T14:51:19.253Z",
+        "lastUpdated": "2026-06-07T14:51:19.253Z",
+        "gitCommitSha": "c27421d77d9edce81ab0d1ab1286654e626de219"
+      }
+    ],
+    "code-simplifier@claude-plugins-official": [
+      {
+        "scope": "user",
+        "installPath": "/home/hoangbui/.claude/plugins/cache/claude-plugins-official/code-simplifier/1.0.0",
+        "version": "1.0.0",
+        "installedAt": "2026-06-07T14:51:19.253Z",
+        "lastUpdated": "2026-06-07T14:51:19.253Z",
+        "gitCommitSha": "c27421d77d9edce81ab0d1ab1286654e626de219"
+      }
+    ],
+    "gopls-lsp@claude-plugins-official": [
+      {
+        "scope": "user",
+        "installPath": "/home/hoangbui/.claude/plugins/cache/claude-plugins-official/gopls-lsp/1.0.0",
+        "version": "1.0.0",
+        "installedAt": "2026-06-07T14:51:19.253Z",
+        "lastUpdated": "2026-06-07T14:51:19.253Z",
+        "gitCommitSha": "c27421d77d9edce81ab0d1ab1286654e626de219"
+      }
+    ],
+    "caveman@caveman": [
+      {
+        "scope": "user",
+        "installPath": "/home/hoangbui/.claude/plugins/cache/caveman/caveman/655b7d9c5431",
+        "version": "655b7d9c5431",
+        "installedAt": "2026-06-07T14:58:20.222Z",
+        "lastUpdated": "2026-06-07T14:58:20.222Z",
+        "gitCommitSha": "655b7d9c5431f822264b7732e9901c5578ac84cf"
+      }
+    ]
+  }
+}

@@ -1,0 +1,49 @@
+# Java Coding Style
+
+## Formatting (from `.editorconfig`)
+- **Indent**: 4 spaces, no tabs
+- **Line length**: 100 characters max
+- **Continuation indent**: 8 spaces
+- **Line endings**: LF
+- **Charset**: UTF-8
+- **Final newline**: required
+
+## File header
+Every source file must start with the Apache 2.0 license header.
+Copy from any existing file in `jsprit-core/src/main/java/`.
+
+## Naming
+- Classes/interfaces: `UpperCamelCase`
+- Methods/fields: `lowerCamelCase`
+- Constants: `UPPER_SNAKE_CASE`
+- Test classes: `FooTest` (JUnit 5)
+
+## Patterns to follow
+
+### Builder for complex objects
+```java
+public static class Builder {
+    // required fields in constructor
+    private Builder(String id) { ... }
+    public static Builder newInstance(String id) { return new Builder(id); }
+    public Builder withFoo(Foo foo) { this.foo = foo; return this; }
+    public MyClass build() { return new MyClass(this); }
+}
+```
+
+### Interface defaults for backward compat
+Prefer `default` methods over breaking existing implementors.
+
+### Logging
+Use SLF4J — `private static final Logger logger = LoggerFactory.getLogger(Foo.class);`
+Never use `System.out` or `System.err`.
+
+### Nulls
+Validate at public API boundaries. Use early-return guards, not nested ifs.
+Do not use Optional in hot paths (allocation cost).
+
+## Testing
+- Framework: JUnit 5 + Mockito 5
+- Test file location: mirrors main source under `src/test/java/`
+- Test memory cap: `-Xmx100m` — avoid large in-memory structures in tests
+- Prefer integration-style tests that build a real `VehicleRoutingProblem` and solve it over mocking internals

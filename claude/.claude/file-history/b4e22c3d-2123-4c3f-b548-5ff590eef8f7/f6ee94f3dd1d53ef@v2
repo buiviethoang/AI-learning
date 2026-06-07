@@ -1,0 +1,158 @@
+# How to Run
+
+## Prerequisites
+
+| Tool | Required version |
+|---|---|
+| JDK | 21+ (Temurin recommended) |
+| Maven | 3.6.0+ |
+| Git | any recent version |
+
+Verify:
+```bash
+java -version      # should print openjdk 21
+mvn -version       # should print Apache Maven 3.6+
+```
+
+## Clone and build
+
+```bash
+git clone https://github.com/graphhopper/jsprit.git
+cd jsprit
+mvn verify          # builds both modules + runs all tests
+```
+
+Expected output (success):
+```
+[INFO] jsprit-core ................................ SUCCESS
+[INFO] jsprit-analysis ........................... SUCCESS
+[INFO] BUILD SUCCESS
+```
+
+## Running tests
+
+```bash
+# All tests (unit + integration)
+mvn verify
+
+# Unit tests only
+mvn test
+
+# Specific module
+mvn test -pl jsprit-core
+
+# Single class
+mvn test -pl jsprit-core -Dtest=VehicleRoutingAlgorithmTest
+
+# Single method
+mvn test -pl jsprit-core -Dtest=VehicleRoutingAlgorithmTest#testMaxIterations
+```
+
+## IDE setup
+
+### IntelliJ IDEA
+1. **File → Open** → select the root `pom.xml` → open as project
+2. Project SDK: set to JDK 21
+3. IntelliJ will auto-import Maven modules (`jsprit-core`, `jsprit-analysis`)
+4. Run any `*Test.java` with the green play button
+5. `.editorconfig` is picked up automatically — ensure the EditorConfig plugin is enabled
+
+### VS Code
+1. Install **Extension Pack for Java** (Microsoft)
+2. Open the repo root folder
+3. Java extension detects Maven project automatically
+4. Use **Testing** panel to run JUnit 5 tests
+
+### Eclipse
+1. **File → Import → Maven → Existing Maven Projects**
+2. Select repo root, import both modules
+3. Right-click test class → **Run As → JUnit Test**
+
+## Running a minimal solve (quick smoke test)
+
+Create a scratch file or run this in a test to verify the library works end-to-end:
+
+```java
+import com.graphhopper.jsprit.core.algorithm.VehicleRoutingAlgorithm;
+import com.graphhopper.jsprit.core.algorithm.box.Jsprit;
+import com.graphhopper.jsprit.core.problem.Location;
+import com.graphhopper.jsprit.core.problem.VehicleRoutingProblem;
+import com.graphhopper.jsprit.core.problem.job.Service;
+import com.graphhopper.jsprit.core.problem.solution.VehicleRoutingProblemSolution;
+import com.graphhopper.jsprit.core.problem.vehicle.VehicleImpl;
+import com.graphhopper.jsprit.core.problem.vehicle.VehicleTypeImpl;
+import com.graphhopper.jsprit.core.util.Solutions;
+import java.util.Collection;
+
+// 1. Define vehicle type and vehicle
+VehicleTypeImpl type = VehicleTypeImpl.Builder.newInstance("type")
+    .addCapacityDimension(0, 10)
+    .build();
+VehicleImpl vehicle = VehicleImpl.Builder.newInstance("v1")
+    .setStartLocation(Location.newInstance(0, 0))
+    .setType(type)
+    .build();
+
+// 2. Define jobs
+Service s1 = Service.Builder.newInstance("job1")
+    .setLocation(Location.newInstance(1, 2))
+    .addSizeDimension(0, 2)
+    .build();
+Service s2 = Service.Builder.newInstance("job2")
+    .setLocation(Location.newInstance(4, 5))
+    .addSizeDimension(0, 3)
+    .build();
+
+// 3. Build problem
+VehicleRoutingProblem vrp = VehicleRoutingProblem.Builder.newInstance()
+    .addVehicle(vehicle)
+    .addJob(s1)
+    .addJob(s2)
+    .build();
+
+// 4. Solve
+VehicleRoutingAlgorithm algo = Jsprit.createAlgorithm(vrp);
+Collection<VehicleRoutingProblemSolution> solutions = algo.searchSolutions();
+VehicleRoutingProblemSolution best = Solutions.bestOf(solutions);
+
+System.out.println("Cost: " + best.getCost());
+System.out.println("Unassigned: " + best.getUnassignedJobs().size());
+```
+
+## Configuring the algorithm
+
+```java
+VehicleRoutingAlgorithm algo = Jsprit.Builder.newInstance(vrp)
+    .setProperty(Jsprit.Parameter.ITERATIONS, "500")
+    .setProperty(Jsprit.Parameter.THREADS, "4")             // parallel insertion
+    .setProperty(Jsprit.Strategy.RADIAL_REGRET, "1.0")      // enable radial ruin
+    .setProperty(Jsprit.Strategy.RANDOM_REGRET, "1.0")      // weight 1:1
+    .buildAlgorithm();
+```
+
+All `Parameter` and `Strategy` options are in `Jsprit.Parameter` and `Jsprit.Strategy` enums.
+Default iterations: 2000. Default threads: 1.
+
+## Logging output
+
+jsprit uses SLF4J. Add a backend to your test classpath to see logs:
+
+```xml
+<!-- pom.xml test scope -->
+<dependency>
+    <groupId>org.slf4j</groupId>
+    <artifactId>slf4j-simple</artifactId>
+    <version>2.0.16</version>
+    <scope>test</scope>
+</dependency>
+```
+
+Or silence all jsprit output:
+```xml
+<dependency>
+    <groupId>org.slf4j</groupId>
+    <artifactId>slf4j-nop</artifactId>
+    <version>2.0.16</version>
+    <scope>test</scope>
+</dependency>
+```

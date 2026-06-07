@@ -1,0 +1,178 @@
+# Algorithm: Ruin and Recreate
+
+## Overview
+
+jsprit uses a **Large Neighbourhood Search (LNS)** meta-heuristic, specifically the
+*ruin-and-recreate* (destroy-and-repair) paradigm introduced by Shaw (1998) and extended
+by Schrimpf et al. (2000).
+
+The key idea: instead of making small local moves, each iteration *removes* a subset of jobs
+from the current solution (ruin) then greedily *reinserts* them (recreate). This escapes local
+optima that small-step methods cannot.
+
+---
+
+## Algorithm steps
+
+```
+INPUT:  VehicleRoutingProblem (jobs J, vehicles V, costs C, constraints K)
+OUTPUT: Collection of VehicleRoutingProblemSolution
+
+━━━ PHASE 0 — Initialisation ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+S₀ ← constructInitialSolution(J, V)
+    Strategy: regret-based insertion (default in Jsprit factory)
+    Each job is inserted at the position with highest regret
+    (cost of best position - cost of second-best position)
+    → jobs that "hurt most" to delay are inserted first
+
+bestEver ← S₀
+solutions ← {S₀}
+
+━━━ PHASE 1 — Iteration loop  [i = 1 .. maxIterations] ━━━━━━━━━━━━━━━━━
+for each iteration i:
+
+  1. SELECT BASE SOLUTION
+     Sbase ← SolutionSelector.select(solutions)
+     Default: SelectBest — always pick lowest-cost solution
+
+  2. COPY
+     Scopy ← deepCopy(Sbase)   ← original is never mutated
+
+  3. RUIN  (destroy)
+     removedJobs ← RuinStrategy.ruin(Scopy.routes)
+     ├── also includes a proportion of previously unassigned jobs
+
+     Ruin operators (configurable, weighted):
+     ┌─────────────────────┬────────────────────────────────────────┐
+     │ RuinRandom          │ Remove k random jobs                   │
+     │ RuinRadial          │ Remove k jobs near a randomly chosen   │
+     │                     │ seed job (spatial proximity)           │
+     │ RuinRadialDynamic   │ Radial with adaptive neighbourhood size│
+     │ RuinRadialMultiple  │ Radial from multiple seed centres      │
+     │ RuinClusters        │ Remove entire geographically clustered │
+     │                     │ groups of jobs                         │
+     │ RuinKruskalClusters │ Cluster via Kruskal MST, remove one    │
+     │ RuinWorst           │ Remove k jobs with highest insertion   │
+     │                     │ cost (worst-fit removal)               │
+     │ RuinTimeRelated     │ Remove jobs related by time window     │
+     │ RuinString          │ Remove a contiguous sub-sequence from  │
+     │                     │ a route (string removal)               │
+     └─────────────────────┴────────────────────────────────────────┘
+     k is drawn from a range [minRuinFraction, maxRuinFraction] * |J|
+
+  4. RECREATE  (repair / insertion)
+     unassigned ← removedJobs (sorted by id for reproducibility)
+     newSolution ← InsertionStrategy.insertJobs(Scopy.routes, unassigned)
+
+     Insertion operators:
+     ┌──────────────────────────────┬──────────────────────────────────────┐
+     │ CheapestInsertion            │ For each job, try all routes/positions│
+     │                              │ pick cheapest feasible insertion      │
+     │ BestInsertion                │ Same as cheapest but with regret tie- │
+     │                              │ breaking                              │
+     │ RegretInsertion              │ Insert job with max regret first      │
+     │                              │ (regret = Δcost_best - Δcost_2nd)    │
+     │ RegretInsertionFast          │ Regret with priority queue pruning    │
+     │ PositionBasedRegretInsertion │ Regret considering position rank      │
+     │ *Concurrent variants         │ Parallel evaluation using thread pool │
+     └──────────────────────────────┴──────────────────────────────────────┘
+
+     For each (job, route, position) candidate:
+       a. HardRouteConstraint(s)    → skip route if violated
+       b. HardActivityConstraint(s) → skip position if violated
+       c. SoftRouteConstraint(s)    → add penalty to route cost
+       d. SoftActivityConstraint(s) → add penalty to activity cost
+       e. Δcost = transport delta + activity delta + penalties
+
+  5. COST
+     newCost ← SolutionCostCalculator.getCosts(newSolution)
+     Default: totalDistance + unassignedPenalty * |unassigned|
+
+  6. ACCEPT / REJECT
+     ┌─────────────────────────────────┬────────────────────────────────────┐
+     │ SchrimpfAcceptance              │ Accept if Δcost ≤ threshold T(i)   │
+     │ (default)                       │ T decreases geometrically:         │
+     │                                 │ T(i) = T₀ * α^i                   │
+     │                                 │ Allows uphill moves early,         │
+     │                                 │ converges to greedy late           │
+     │ GreedyAcceptance                │ Accept only if newCost < bestCost  │
+     │ RecordToRecordTravel            │ Accept if newCost - bestCost ≤ Δ   │
+     │                                 │ (fixed absolute gap)               │
+     │ AcceptNewRemoveFirst            │ Always accept, drop oldest solution│
+     └─────────────────────────────────┴────────────────────────────────────┘
+
+  7. MEMORISE BEST
+     if newCost < bestEver.cost: bestEver ← newSolution
+
+  8. TERMINATION CHECK
+     PrematureAlgorithmTermination criteria (any can trigger early stop):
+     - IterationWithoutImprovementTermination(n)
+     - TimeTermination(seconds)
+     - VariationCoefficientTermination
+     - custom implementation
+
+━━━ PHASE 2 — Return ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+solutions.add(bestEver)
+return solutions
+```
+
+---
+
+## Cost function
+
+Default objective (minimise):
+
+```
+totalCost = Σ(route ∈ routes) routeCost(route)
+          + unassignedPenalty × |unassignedJobs|
+
+routeCost(route) = Σ transport cost between consecutive activities
+                 + Σ activity cost (e.g. waiting time)
+                 + fixed vehicle cost (if FINITE fleet)
+```
+
+Custom objective: implement `SolutionCostCalculator` and pass to `VehicleRoutingAlgorithm` constructor.
+
+---
+
+## Schrimpf acceptance in detail
+
+Introduced in Schrimpf et al. (2000) *"Record Breaking Optimization"*.
+
+```
+threshold T(iteration) = initialThreshold × exp(-λ × iteration / maxIterations)
+accept if:  newCost ≤ currentCost + T(iteration)
+```
+
+`initialThreshold` is auto-calibrated during a warm-up phase to an acceptance rate ≈ 0.5.
+As iterations progress, T → 0 and the acceptor becomes purely greedy.
+
+---
+
+## Strategy selection (weighted random)
+
+`SearchStrategyManager` holds N strategies, each with a weight.
+Each iteration one strategy is drawn proportionally to its weight:
+
+```
+P(strategy_i) = weight_i / Σ weights
+```
+
+The default Jsprit config uses two strategies:
+- radial ruin + regret insertion (weight = 0.5)
+- random ruin + regret insertion (weight = 0.5)
+
+---
+
+## Complexity notes
+
+| Step | Complexity |
+|---|---|
+| Ruin (random) | O(k) |
+| Ruin (radial) | O(k log n) — sorted neighbour list precomputed |
+| Cheapest insertion | O(k · m · n) per iteration (k jobs, m routes, n activities) |
+| Regret insertion | O(k² · m · n) — recomputes after each placement |
+| State update | O(n) per route after each insertion |
+
+n = activities in route, m = routes, k = ruined jobs.
+Regret insertion is more expensive but typically yields better solutions.

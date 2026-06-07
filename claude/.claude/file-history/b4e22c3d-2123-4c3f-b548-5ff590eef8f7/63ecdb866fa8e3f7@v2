@@ -1,0 +1,60 @@
+# Architecture
+
+## Layer overview
+```
+problem/          Domain model — jobs, vehicles, routes, activities
+problem/constraint/  Hard & soft constraint framework
+problem/cost/     Transport and activity cost abstractions
+algorithm/        Ruin-and-recreate solver and all sub-strategies
+algorithm/box/    Jsprit factory (public API surface)
+analysis/         Read-only post-solve tools
+```
+
+## Core abstractions
+
+### Domain
+- `Job` (interface) — base for `Service`, `Shipment`, `Pickup`, `Delivery`, `Break`
+- `Vehicle` (interface) — extends `HasId`, `HasIndex`
+- `VehicleRoute` — ordered list of `TourActivity` instances assigned to one vehicle
+- `TourActivity` — `Start | End | ServiceActivity | PickupService | DeliverService | ...`
+- `Capacity` — multi-dimensional capacity (array of int)
+- `Location` — coordinate + optional index
+
+### Constraint framework
+```
+Constraint (marker)
+  ├── HardRouteConstraint   — reject a whole route insertion
+  ├── HardActivityConstraint — reject a single activity insertion
+  ├── SoftRouteConstraint   — add penalty at route level
+  └── SoftActivityConstraint — add penalty at activity level
+```
+`ConstraintManager` wires them into the algorithm. Always prefer hard constraints over soft where the rule is absolute.
+
+### Algorithm
+```
+VehicleRoutingAlgorithm
+  └── SearchStrategy (ruin + recreate + acceptor)
+        ├── RuinStrategy       — destroys part of current solution
+        ├── InsertionStrategy  — rebuilds from unassigned jobs
+        └── SolutionAcceptor   — decides whether to keep new solution
+```
+`SolutionSelector` picks which strategy fires each iteration.
+
+### Listener / event bus
+Algorithm emits typed events (`AlgorithmStarts`, `IterationStarts`, `IterationEnds`, `AlgorithmEnds`, `StrategyExecuted`). Attach via `VehicleRoutingAlgorithm.addListener()`. Prefer the new `AlgorithmEventListener` over the older per-phase listeners.
+
+## Design patterns in use
+| Pattern | Where |
+|---|---|
+| Builder | `VehicleImpl.Builder`, `Service.Builder`, `VehicleRoutingProblem.Builder` |
+| Strategy | All ruin/insertion/acceptor implementations |
+| Observer | Algorithm & ruin/insertion listener hierarchy |
+| Factory | `Jsprit`, `RuinOperatorFactory`, `InsertionOperatorFactory` |
+| State object | `StateManager` — caches per-route computed state |
+
+## Extension points
+1. **Custom constraint** — implement `HardRouteConstraint` or `HardActivityConstraint`, register with `ConstraintManager`.
+2. **Custom cost** — implement `VehicleRoutingTransportCosts`.
+3. **Custom ruin** — extend `AbstractRuinStrategy`.
+4. **Custom insertion** — extend `AbstractInsertionStrategy`.
+5. **Custom job type** — extend `AbstractJob`, implement `Job`.

@@ -1,0 +1,144 @@
+# Entity Relationship Diagram
+
+## Domain entities
+
+```
+┌─────────────────────────────┐
+│    VehicleRoutingProblem     │
+│─────────────────────────────│
+│ fleetSize: FleetSize         │
+│   (INFINITE | FINITE)        │
+├─────────────────────────────┤
+│ jobs: Map<String, Job>       │──────────────┐  1..*
+│ vehicles: Set<Vehicle>       │──────────┐   │
+│ transportCosts               │          │   │
+│ activityCosts                │          │   │
+│ initialRoutes: List<VRoute>  │          │   │
+└─────────────────────────────┘          │   │
+                                         │   │
+          ┌──────────────────────────────┘   │
+          │ 1..*                             │ 1..*
+          ▼                                  ▼
+┌─────────────────────┐         ┌─────────────────────────┐
+│      Vehicle        │         │         Job (I)          │
+│─────────────────────│         │─────────────────────────│
+│ id: String          │         │ id: String               │
+│ type: VehicleType   │◄──┐     │ index: int               │
+│ startLocation       │   │     │ type: Job.Type           │
+│ endLocation         │   │     │   SERVICE                │
+│ earliestStart: dbl  │   │     │   SHIPMENT               │
+│ latestArrival: dbl  │   │     │   PICKUP_SERVICE         │
+│ skills: Skills      │   │     │   DELIVERY_SERVICE       │
+│ breaks: List<Break> │   │     │   BREAK_SERVICE          │
+└─────────────────────┘   │     │   EN_ROUTE_DELIVERY      │
+                          │     │   EN_ROUTE_PICKUP        │
+┌─────────────────────┐   │     └────────────┬────────────┘
+│    VehicleType      │───┘                  │
+│─────────────────────│              ┌───────┴────────┐
+│ typeId: String      │              │                │
+│ capacity: Capacity  │              ▼                ▼
+│ fixedCosts: dbl     │   ┌──────────────────┐ ┌────────────────────┐
+│ vehicleCostParams   │   │  Service/Pickup/  │ │     Shipment        │
+│  (perDistance,      │   │  Delivery/Break   │ │────────────────────│
+│   perTime,          │   │──────────────────│ │ pickupLocation      │
+│   perWaitingTime)   │   │ location: Location│ │ deliveryLocation   │
+└─────────────────────┘   │ serviceTime: dbl  │ │ pickupServiceTime  │
+                          │ timeWindows: List │ │ deliveryServiceTime│
+┌─────────────────────┐   │ capacity: Capacity│ │ pickupTW: List     │
+│     Capacity        │   │ skills: Skills    │ │ deliveryTW: List   │
+│─────────────────────│   │ priority: int     │ │ capacity: Capacity │
+│ dimensions: int[]   │   └──────────────────┘ │ skills: Skills     │
+│ (multi-dimensional) │                         └────────────────────┘
+└─────────────────────┘
+
+┌─────────────────────┐
+│      Skills         │
+│─────────────────────│
+│ skills: Set<String> │
+└─────────────────────┘
+
+┌─────────────────────┐
+│     Location        │
+│─────────────────────│
+│ id: String          │
+│ coordinate: Coord   │
+│ index: int          │
+└─────────────────────┘
+```
+
+## Solution entities
+
+```
+┌──────────────────────────────────────┐
+│    VehicleRoutingProblemSolution      │
+│──────────────────────────────────────│
+│ cost: double                          │
+│ routes: Collection<VehicleRoute>  1..*├──────────────────────────┐
+│ unassignedJobs: Collection<Job>   0..*│                          │
+└──────────────────────────────────────┘                          │
+                                                                   ▼
+                                               ┌────────────────────────────────┐
+                                               │         VehicleRoute            │
+                                               │────────────────────────────────│
+                                               │ vehicle: Vehicle                │
+                                               │ start: Start (TourActivity)     │
+                                               │ end: End (TourActivity)         │
+                                               │ tourActivities: TourActivities  │
+                                               └────────────────┬───────────────┘
+                                                                │ ordered 1..*
+                                                                ▼
+                                               ┌────────────────────────────────┐
+                                               │       TourActivity (I)          │
+                                               │────────────────────────────────│
+                                               │ index: int                      │
+                                               │ location: Location              │
+                                               │ arrTime: double                 │
+                                               │ endTime: double                 │
+                                               │ theoreticalEarliest: double     │
+                                               │ theoreticalLatest: double       │
+                                               └────────────────┬───────────────┘
+                                                    ┌───────────┤
+                                                    │           │
+                                          ┌─────────┴──┐  ┌────┴──────────────┐
+                                          │  Start/End  │  │  JobActivity (I)  │
+                                          └─────────────┘  │ job: Job          │
+                                                           └────────┬──────────┘
+                                                    ┌──────────────┤
+                                            PickupService   DeliverService
+                                            ServiceActivity BreakActivity
+                                            EnRoutePickup   EnRouteDelivery
+```
+
+## State entities (runtime cache)
+
+```
+┌──────────────────────────────────┐
+│        StateManager               │
+│──────────────────────────────────│
+│ Keyed by: (StateId, VehicleRoute) │
+│       or: (StateId, TourActivity) │
+│                                   │
+│ Stores computed values:           │
+│  - load at each activity          │
+│  - time slack                     │
+│  - future picks/deliveries        │
+│  - any custom state               │
+└──────────────────────────────────┘
+  Uses: StateId constants (static final instances)
+  Note: values are cleared and recomputed after each ruin/recreate step
+```
+
+## Key cardinalities summary
+
+| Relationship | Cardinality |
+|---|---|
+| VRP → Vehicle | 1 .. * |
+| VRP → Job | 0 .. * |
+| Vehicle → VehicleType | * .. 1 |
+| VehicleRoute → Vehicle | * .. 1 |
+| VehicleRoute → TourActivity | 1 .. * (ordered) |
+| Shipment → Location | 2 (pickup + delivery) |
+| Service/Pickup/Delivery → Location | 1 |
+| Job → TimeWindow | 1 .. * |
+| Job → Capacity | 1 |
+| Vehicle → Skills, Job → Skills | 0..1 each (vehicle must cover job's required skills) |

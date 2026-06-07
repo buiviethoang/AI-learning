@@ -1,0 +1,83 @@
+# Logical Flow
+
+## End-to-end user journey
+
+```
+1. Define problem
+   VehicleRoutingProblem.Builder
+     .addVehicle(vehicle)          // fleet
+     .addJob(service/shipment)     // demand
+     .setRoutingCost(costs)        // cost model
+     .addInitialVehicleRoute(...)  // optional locked routes
+     .build()                      // immutable VRP
+
+2. Create algorithm
+   Jsprit.createAlgorithm(vrp)     // default ruin-and-recreate config
+   -- or --
+   custom SearchStrategyManager    // plug custom strategies
+
+3. (Optional) provide initial solution
+   algorithm.addInitialSolution(solution)
+   algorithm.addInitialSolution(SolutionSpec)   // preferred: avoids index issues
+
+4. Solve
+   Collection<VehicleRoutingProblemSolution> solutions = algorithm.searchSolutions()
+
+5. Extract best
+   VehicleRoutingProblemSolution best = Solutions.bestOf(solutions)
+
+6. (Optional) analyse
+   jsprit-analysis toolbox         // per-route stats, charts
+```
+
+## Per-iteration flow
+
+```
+algorithmStarts event
+  │
+  ▼
+for i in [1 .. maxIterations]
+  │
+  ├── iterationStarts event
+  ├── IterationStarted event (new event bus)
+  │
+  ├── SearchStrategyManager.getRandomStrategy()   ← weighted random pick
+  │     └── SearchStrategy.run(vrp, solutions)
+  │           ├─ SolutionSelector.selectSolution()  ← pick base (e.g. SelectBest)
+  │           ├─ copy solution                       ← original is never mutated
+  │           ├─ SearchStrategyModule.runAndGetSolution()
+  │           │     └─ RuinAndRecreateModule
+  │           │           ├─ RuinStrategy.ruin()     ← remove k jobs
+  │           │           └─ InsertionStrategy.insertJobs()  ← reinsert
+  │           ├─ SolutionCostCalculator.getCosts()
+  │           └─ SolutionAcceptor.acceptSolution()   ← keep or discard
+  │
+  ├── memorizeIfBestEver()
+  ├── AcceptanceDecision event
+  ├── TerminationManager.isPrematureBreak()?  → break early if true
+  ├── IterationCompleted event
+  └── iterationEnds event
+
+algorithmEnds event
+return solutions  (includes bestEver appended at end)
+```
+
+## Data ownership during a run
+
+| Object | Mutable? | Notes |
+|---|---|---|
+| `VehicleRoutingProblem` | No | Frozen after `.build()` |
+| `VehicleRoutingProblemSolution` | Yes | Copied before each strategy run |
+| `VehicleRoute` | Yes (during ruin/recreate) | Routes inside the copied solution |
+| `StateManager` cache | Yes | Updated after each route modification |
+| `bestEver` reference | Yes | Replaced whenever a cheaper solution is found |
+
+## Constraint evaluation order (per insertion candidate)
+
+```
+HardRouteConstraint(s) → reject entire route insertion early
+  └── if pass → HardActivityConstraint(s) for each position
+                  └── if pass → SoftRouteConstraint(s) add penalty
+                                  └── SoftActivityConstraint(s) add penalty
+                                        └── total cost = transport + activity + penalties
+```

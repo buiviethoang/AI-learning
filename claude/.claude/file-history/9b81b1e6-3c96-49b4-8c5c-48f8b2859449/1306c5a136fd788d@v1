@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(claude doctor:*)",
+      "Bash(npm i *)",
+      "Bash(sudo npm *)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

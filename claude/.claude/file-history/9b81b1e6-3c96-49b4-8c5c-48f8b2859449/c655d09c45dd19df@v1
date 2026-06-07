@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3 -)",
+      "Bash(pip install *)",
+      "Bash(python3 -c \"from reportlab.lib.pagesizes import letter; print\\('reportlab available'\\)\")",
+      "Bash(python3 create_summary_pdf.py)",
+      "Bash(mkdir -p /home/hoangbui/Desktop/Personal/an-startups/jsprit/.claude)",
+      "Bash(mv /home/hoangbui/Desktop/Personal/an-startups/jsprit/.claude/erd.md /home/hoangbui/Desktop/Personal/an-startups/jsprit/docs/erd.md)",
+      "Bash(mv /home/hoangbui/Desktop/Personal/an-startups/jsprit/.claude/c4-and-architecture.md /home/hoangbui/Desktop/Personal/an-startups/jsprit/docs/c4-and-architecture.md)",
+      "Bash(mv /home/hoangbui/Desktop/Personal/an-startups/jsprit/.claude/algorithm.md /home/hoangbui/Desktop/Personal/an-startups/jsprit/docs/algorithm.md)",
+      "Bash(mv /home/hoangbui/Desktop/Personal/an-startups/jsprit/.claude/logical-flow.md /home/hoangbui/Desktop/Personal/an-startups/jsprit/docs/logical-flow.md)",
+      "Bash(mv /home/hoangbui/Desktop/Personal/an-startups/jsprit/.claude/how-to-run.md /home/hoangbui/Desktop/Personal/an-startups/jsprit/docs/how-to-run.md)",
+      "Bash(mv /home/hoangbui/Desktop/Personal/an-startups/jsprit/.claude/integration.md /home/hoangbui/Desktop/Personal/an-startups/jsprit/docs/integration.md)",
+      "Bash(mv /home/hoangbui/Desktop/Personal/an-startups/jsprit/.claude/runbook.md /home/hoangbui/Desktop/Personal/an-startups/jsprit/docs/runbook.md)"
+    ],
+    "additionalDirectories": [
+      "/home/hoangbui/Desktop/Personal/an-startups/jsprit"
+    ]
+  },
+  "extraKnownMarketplaces": {
+    "anthropic-agent-skills": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/skills"
+      }
+    }
+  },
+  "skipDangerousModePermissionPrompt": true
+}

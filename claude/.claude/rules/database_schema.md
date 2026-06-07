@@ -9,6 +9,10 @@ Managed by **Goose** (`migrations/`). All tables are in the `public` schema. UUI
 | `tenants` | Top-level org identity (`tenant_key` unique) |
 | `markets` | Per-tenant market (`market_code`, country, timezone, currency) |
 | `providers` | Provider registry (`provider_key`, `channel_group`, config schema) |
+| `provider_channel_identity` | Provider channel identity / credential linkage |
+| `provider_channel_icon` | UI icons per provider channel |
+| `provider_partners` | Partner-level provider config (e.g. FPT, Triplay) |
+| `market_provider_channels` | Active providers per market+channel (routing eligibility) |
 | `templates` | Versioned message templates per tenant/market/channel/locale |
 | `template_routing_profile` | Maps template key → allowed channels + provider scoring profile |
 
@@ -17,9 +21,16 @@ Managed by **Goose** (`migrations/`). All tables are in the `public` schema. UUI
 | Table | Purpose |
 |---|---|
 | `notification_requests` | Deduplication + idempotency record (one per external request) |
-| `execution_plans` | Planned delivery attempt (channel, provider, scheduled_at, status) |
+| `execution_plans` | Planned delivery attempt (channel, provider, scheduled_at, status, `request_snapshot` jsonb) |
 | `notification_attempts` | Individual provider call records (status, provider response, cost) |
 | `worker_attempt_idempotency` | Prevents double-processing of Kafka messages |
+
+## Analytics & Observability Tables
+
+| Table | Purpose |
+|---|---|
+| `notification_daily_summary` | Per-market daily summary with `channel` column (`nds_market_stat_date_channel_uidx`) |
+| `alert_logs` | Triggered alert records (market, severity, provider, occurred_at) |
 
 ## Policy / Scoring Tables
 

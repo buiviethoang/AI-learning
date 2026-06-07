@@ -1,0 +1,29 @@
+# jsprit — Claude Context
+
+## What this is
+A Java toolkit for solving Vehicle Routing Problems (VRP) and TSP variants.
+Core algorithm: ruin-and-recreate meta-heuristic. Maintained under GraphHopper.
+
+## Modules
+| Module | Purpose |
+|---|---|
+| `jsprit-core` | Problem model, algorithm, constraints, costs |
+| `jsprit-analysis` | Post-solve visualization and analysis |
+
+## Key entry points
+- `Jsprit.java` — factory for building the algorithm
+- `VehicleRoutingProblem.Builder` — fluent problem construction
+- `VehicleRoutingAlgorithm.searchSolutions()` — solve
+- `Solutions.bestOf()` — pick best from solution collection
+
+## Build & test
+```bash
+mvn verify                   # build + all tests
+mvn test -pl jsprit-core     # core tests only
+```
+Java 21 required. Maven 3.6.0+.
+
+## Deeper context
+- [Architecture & design patterns](.claude/architecture.md)
+- [Java coding style](.claude/java-style.md)
+- [Rules & constraints](.claude/rules.md)
